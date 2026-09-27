@@ -21,26 +21,26 @@ public class WolfeinRaceGFIExpandWingmanDroneUIPatch
     {
         Log.Message($"{LogPrefix} Initializing...");
 
-        var _wingmanSystemPanelType = AccessTools.TypeByName("JL_WolfeinExpand.Gizmo_WingmanSystemPanel");
+        var wingmanSystemPanelType = AccessTools.TypeByName("JL_WolfeinExpand.Gizmo_WingmanSystemPanel");
 
-        if (_wingmanSystemPanelType == null)
+        if (wingmanSystemPanelType == null)
         {
             Log.Warning($"{LogPrefix} Could not find wingman panel type.");
             return;
         }
 
-        var _showWorkModeMenu =
-            AccessTools.DeclaredMethod(_wingmanSystemPanelType, "ShowWorkModeMenu");
+        var showWorkModeMenu =
+            AccessTools.DeclaredMethod(wingmanSystemPanelType, "ShowWorkModeMenu");
 
-        if (_showWorkModeMenu == null)
+        if (showWorkModeMenu == null)
         {
             Log.Warning($"{LogPrefix} Could not find ShowWorkModeMenu.");
             return;
         }
 
-        hediffCompField = AccessTools.Field(_wingmanSystemPanelType, "hediffComp");
-        getWorkModeNameMethod = AccessTools.Method(_wingmanSystemPanelType, "GetWorkModeName");
-        getWorkModeIconPathMethod = AccessTools.Method(_wingmanSystemPanelType, "GetWorkModeIconPath");
+        hediffCompField = AccessTools.Field(wingmanSystemPanelType, "hediffComp");
+        getWorkModeNameMethod = AccessTools.Method(wingmanSystemPanelType, "GetWorkModeName");
+        getWorkModeIconPathMethod = AccessTools.Method(wingmanSystemPanelType, "GetWorkModeIconPath");
 
         if (hediffCompField == null || getWorkModeNameMethod == null || getWorkModeIconPathMethod == null)
         {
@@ -48,7 +48,7 @@ public class WolfeinRaceGFIExpandWingmanDroneUIPatch
             return;
         }
 
-        MpCompat.harmony.Patch(_showWorkModeMenu,
+        MpCompat.harmony.Patch(showWorkModeMenu,
             new HarmonyMethod(typeof(WolfeinRaceGFIExpandWingmanDroneUIPatch), nameof(ShowWorkModeMenuPrefix)));
 
         Log.Message($"{LogPrefix} Initialized.");
@@ -65,17 +65,22 @@ public class WolfeinRaceGFIExpandWingmanDroneUIPatch
 
     private static bool ShowWorkModeMenuPrefix(object __instance)
     {
-        var _wingmanSystem = hediffCompField.GetValue(__instance) as HediffComp_WingmanSystem;
+        // Singleplayer (or when already executing the synced command):
+        // let the original menu run so behaviour never diverges from vanilla.
+        if (!MP.IsInMultiplayer || MP.IsExecutingSyncCommand)
+            return true;
 
-        if (_wingmanSystem == null)
+        var wingmanSystem = hediffCompField.GetValue(__instance) as HediffComp_WingmanSystem;
+
+        if (wingmanSystem == null)
             return false;
 
-        var _pawn = _wingmanSystem.parent?.pawn;
+        var pawn = wingmanSystem.parent?.pawn;
 
-        if (_pawn == null)
+        if (pawn == null)
             return false;
 
-        DroneWorkMode[] _modes =
+        DroneWorkMode[] workModes =
         {
             DroneWorkMode.Work,
             DroneWorkMode.Escort,
@@ -83,79 +88,79 @@ public class WolfeinRaceGFIExpandWingmanDroneUIPatch
             DroneWorkMode.SelfShutdown
         };
 
-        List<FloatMenuOption> _options = new();
+        List<FloatMenuOption> menuOptions = new();
 
-        foreach (var _mode in _modes)
+        foreach (var workMode in workModes)
         {
-            var _capturedMode = _mode;
+            var capturedWorkMode = workMode;
 
-            var _label = (string)getWorkModeNameMethod.Invoke(__instance, new object[] { _capturedMode });
-            var _iconPath = (string)getWorkModeIconPathMethod.Invoke(__instance, new object[] { _capturedMode });
-            var _icon = ContentFinder<Texture2D>.Get(_iconPath);
+            var modeLabel = (string)getWorkModeNameMethod.Invoke(__instance, new object[] { capturedWorkMode });
+            var modeIconPath = (string)getWorkModeIconPathMethod.Invoke(__instance, new object[] { capturedWorkMode });
+            var modeIcon = ContentFinder<Texture2D>.Get(modeIconPath);
 
-            var _action = () => { SetWorkMode(_pawn, (int)_capturedMode); };
+            var menuAction = () => { SetWorkMode(pawn, (int)capturedWorkMode); };
 
-            _options.Add(new FloatMenuOption(_label, _action, _icon, Color.white));
+            menuOptions.Add(new FloatMenuOption(modeLabel, menuAction, modeIcon, Color.white));
         }
 
-        Find.WindowStack.Add(new FloatMenu(_options));
+        Find.WindowStack.Add(new FloatMenu(menuOptions));
 
         return false;
     }
 
-    private static void SetWorkMode(Pawn _pawn, int _modeValue)
+    private static void SetWorkMode(Pawn pawn, int workModeValue)
     {
-        if (_pawn == null || _pawn.health?.hediffSet == null)
+        if (pawn == null || pawn.health?.hediffSet == null)
             return;
 
-        var _wingmanSystem = FindWingmanSystem(_pawn);
-        if (_wingmanSystem == null)
+        var wingmanSystem = FindWingmanSystem(pawn);
+        if (wingmanSystem == null)
             return;
 
-        var _mode = (DroneWorkMode)_modeValue;
-        _wingmanSystem.currentWorkMode = _mode;
+        var workMode = (DroneWorkMode)workModeValue;
+        wingmanSystem.currentWorkMode = workMode;
 
-        if (_mode == DroneWorkMode.Work)
-            TryDeployDronesForWorkMode(_wingmanSystem);
+        if (workMode == DroneWorkMode.Work)
+            TryDeployDronesForWorkMode(wingmanSystem);
         else if
-            (_mode == DroneWorkMode.Escort) TryDeployDronesForEscortMode(_wingmanSystem);
+            (workMode == DroneWorkMode.Escort) TryDeployDronesForEscortMode(wingmanSystem);
 
-        if (_mode != DroneWorkMode.SelfShutdown)
-            foreach (var _drone in _wingmanSystem.GetDeployedDrones())
+        if (workMode != DroneWorkMode.SelfShutdown)
+            foreach (var drone in wingmanSystem.GetDeployedDrones())
             {
-                if (_drone == null || !_drone.Spawned || _drone.Dead)
+                if (drone == null || !drone.Spawned || drone.Dead)
                     continue;
 
-                if (_drone is Pawn_PermanentFlyer _permanentFlyer)
-                    _permanentFlyer.enablePermanentFlight = true;
+                if (drone is Pawn_PermanentFlyer permanentFlyer)
+                    permanentFlyer.enablePermanentFlight = true;
 
-                if (_drone.flight != null && !_drone.flight.Flying && _drone.flight.CanFlyNow)
-                    _drone.flight.StartFlying();
+                if (drone.flight != null && !drone.flight.Flying && drone.flight.CanFlyNow)
+                    drone.flight.StartFlying();
             }
 
-        foreach (var _drone in _wingmanSystem.GetDeployedDrones())
+        foreach (var drone in wingmanSystem.GetDeployedDrones())
         {
-            if (_drone == null || !_drone.Spawned || _drone.Dead || _drone.jobs == null)
+            if (drone == null || !drone.Spawned || drone.Dead || drone.jobs == null)
                 continue;
 
-            _drone.jobs.StopAll();
-            _drone.mindState?.priorityWork.Clear();
-            _drone.jobs.CheckForJobOverride();
+            drone.jobs.StopAll();
+            drone.mindState?.priorityWork.Clear();
+            drone.jobs.CheckForJobOverride();
         }
     }
 
-    private static HediffComp_WingmanSystem FindWingmanSystem(Pawn _pawn)
+    private static HediffComp_WingmanSystem FindWingmanSystem(Pawn pawn)
     {
-        if (_pawn?.health?.hediffSet?.hediffs == null)
+        if (pawn?.health?.hediffSet?.hediffs == null)
             return null;
 
-        foreach (var _hediff in _pawn.health.hediffSet.hediffs)
+        foreach (var hediff in pawn.health.hediffSet.hediffs)
         {
-            var _wingmanSystem =
-                _hediff.TryGetComp<HediffComp_WingmanSystem>();
+            var wingmanSystem =
+                hediff.TryGetComp<HediffComp_WingmanSystem>();
 
-            if (_wingmanSystem != null)
-                return _wingmanSystem;
+            if (wingmanSystem != null)
+                return wingmanSystem;
         }
 
         return null;
@@ -163,62 +168,62 @@ public class WolfeinRaceGFIExpandWingmanDroneUIPatch
 
     #region Try Deploy Drones
 
-    private static void TryDeployDronesForWorkMode(HediffComp_WingmanSystem _wingmanSystem)
+    private static void TryDeployDronesForWorkMode(HediffComp_WingmanSystem wingmanSystem)
     {
-        var _storage =
-            _wingmanSystem.GetStorage();
+        var storage =
+            wingmanSystem.GetStorage();
 
-        if (_storage == null)
+        if (storage == null)
             return;
 
-        var _minimumPower = _wingmanSystem.droneRechargeThresholds.min;
+        var minimumPower = wingmanSystem.droneRechargeThresholds.min;
 
-        for (var _slotIndex = 0; _slotIndex < 4; _slotIndex++)
+        for (var slotIndex = 0; slotIndex < 4; slotIndex++)
         {
-            var _drone = _storage.GetDrone(_slotIndex);
+            var drone = storage.GetDrone(slotIndex);
 
-            if (_drone == null || _drone.Spawned)
+            if (drone == null || drone.Spawned)
                 continue;
 
-            var _powerCell =
-                _drone.TryGetComp<CompMechPowerCell>();
+            var powerCell =
+                drone.TryGetComp<CompMechPowerCell>();
 
-            if (_powerCell == null)
+            if (powerCell == null)
                 continue;
 
-            var _power =
-                _powerCell.PowerTicksLeft / 2500f;
+            var powerHours =
+                powerCell.PowerTicksLeft / 2500f;
 
-            if (_power > _minimumPower)
-                _storage.DeployDrone(_slotIndex);
+            if (powerHours > minimumPower)
+                storage.DeployDrone(slotIndex);
         }
     }
 
-    private static void TryDeployDronesForEscortMode(HediffComp_WingmanSystem _wingmanSystem)
+    private static void TryDeployDronesForEscortMode(HediffComp_WingmanSystem wingmanSystem)
     {
-        var _storage = _wingmanSystem.GetStorage();
+        var storage = wingmanSystem.GetStorage();
 
-        if (_storage == null)
+        if (storage == null)
             return;
 
-        for (var _slotIndex = 0; _slotIndex < 4; _slotIndex++)
+        for (var slotIndex = 0; slotIndex < 4; slotIndex++)
         {
-            var _drone = _storage.GetDrone(_slotIndex);
+            var drone = storage.GetDrone(slotIndex);
 
-            if (_drone == null || _drone.Spawned)
+            if (drone == null || drone.Spawned)
                 continue;
 
-            var _powerCell =
-                _drone.TryGetComp<CompMechPowerCell>();
+            var powerCell =
+                drone.TryGetComp<CompMechPowerCell>();
 
-            if (_powerCell == null)
+            if (powerCell == null)
                 continue;
 
-            var _power =
-                _powerCell.PowerTicksLeft / 2500f;
+            var powerHours =
+                powerCell.PowerTicksLeft / 2500f;
 
-            if (_power > 5.0f)
-                _storage.DeployDrone(_slotIndex);
+            if (powerHours > 5.0f)
+                storage.DeployDrone(slotIndex);
         }
     }
 

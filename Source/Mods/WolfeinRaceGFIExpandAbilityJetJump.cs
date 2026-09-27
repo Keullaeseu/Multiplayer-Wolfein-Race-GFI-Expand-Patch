@@ -25,16 +25,16 @@ public static class WolfeinRaceGFIExpandAbilityJetJumpPatch
 
     private static void PatchJobExposeData()
     {
-        var _jobExposeData = AccessTools.Method(typeof(Job), nameof(Job.ExposeData));
+        var jobExposeData = AccessTools.Method(typeof(Job), nameof(Job.ExposeData));
 
-        if (_jobExposeData == null)
+        if (jobExposeData == null)
         {
             Log.Error($"{LogPrefix} Could not find " + "Verse.AI.Job.ExposeData().");
             return;
         }
 
         MpCompat.harmony.Patch(
-            _jobExposeData,
+            jobExposeData,
             new HarmonyMethod(
                 typeof(WolfeinRaceGFIExpandAbilityJetJumpPatch),
                 nameof(JobExposeDataPrefix)),
@@ -47,16 +47,16 @@ public static class WolfeinRaceGFIExpandAbilityJetJumpPatch
 
     private static void PatchStartNextToil()
     {
-        var _startNextToil = AccessTools.Method(typeof(JobDriver), "TryActuallyStartNextToil");
+        var startNextToil = AccessTools.Method(typeof(JobDriver), "TryActuallyStartNextToil");
 
-        if (_startNextToil == null)
+        if (startNextToil == null)
         {
             Log.Error($"{LogPrefix} Could not find " + "JobDriver.TryActuallyStartNextToil().");
             return;
         }
 
         MpCompat.harmony.Patch(
-            _startNextToil,
+            startNextToil,
             new HarmonyMethod(
                 typeof(WolfeinRaceGFIExpandAbilityJetJumpPatch),
                 nameof(TryActuallyStartNextToilPrefix)));
@@ -74,9 +74,9 @@ public static class WolfeinRaceGFIExpandAbilityJetJumpPatch
         if (Scribe.mode != LoadSaveMode.Saving)
             return;
 
-        var _verb = __instance.verbToUse;
+        var verb = __instance.verbToUse;
 
-        if (!IsJetJumpVerb(_verb))
+        if (!IsJetJumpVerb(verb))
             return;
 
         __instance.verbToUse = null;
@@ -84,7 +84,7 @@ public static class WolfeinRaceGFIExpandAbilityJetJumpPatch
         __state = new SavedVerbState
         {
             Job = __instance,
-            Verb = _verb
+            Verb = verb
         };
     }
 
@@ -105,95 +105,95 @@ public static class WolfeinRaceGFIExpandAbilityJetJumpPatch
         EnsureJetJumpVerb(__instance);
     }
 
-    private static void EnsureJetJumpVerb(JobDriver _driver)
+    private static void EnsureJetJumpVerb(JobDriver driver)
     {
-        var _job = _driver.job;
+        var job = driver.job;
 
-        if (!IsCastJumpJob(_job))
+        if (!IsCastJumpJob(job))
             return;
 
-        if (_job.verbToUse != null)
+        if (job.verbToUse != null)
             return;
 
-        var _pawn = _driver.pawn;
-        if (_pawn == null)
+        var pawn = driver.pawn;
+        if (pawn == null)
         {
             Log.Warning($"{LogPrefix} CastJump has no pawn.");
             return;
         }
 
-        if (!HasJetJumpAbility(_pawn))
+        if (!HasJetJumpAbility(pawn))
             return;
 
-        var _jetJumpVerb = FindJetJumpVerb(_pawn);
-        if (_jetJumpVerb == null)
+        var jetJumpVerb = FindJetJumpVerb(pawn);
+        if (jetJumpVerb == null)
         {
             Log.Warning($"{LogPrefix} Pawn has " + $"{JetJumpAbilityDefName}, but its Jet Jump verb was not found: " +
-                        $"{_pawn.LabelShort}.");
+                        $"{pawn.LabelShort}.");
             return;
         }
 
-        _job.verbToUse = _jetJumpVerb;
+        job.verbToUse = jetJumpVerb;
     }
 
-    private static Verb FindJetJumpVerb(Pawn _pawn)
+    private static Verb FindJetJumpVerb(Pawn pawn)
     {
-        if (_pawn?.abilities?.abilities == null)
+        if (pawn?.abilities?.abilities == null)
             return null;
 
-        foreach (var _ability in _pawn.abilities.abilities)
+        foreach (var ability in pawn.abilities.abilities)
         {
-            if (_ability == null)
+            if (ability == null)
                 continue;
 
-            if (_ability.def?.defName != JetJumpAbilityDefName)
+            if (ability.def?.defName != JetJumpAbilityDefName)
                 continue;
 
-            var _verb = _ability.verb;
-            if (_verb == null)
+            var verb = ability.verb;
+            if (verb == null)
                 continue;
 
-            if (!IsJetJumpVerb(_verb))
+            if (!IsJetJumpVerb(verb))
             {
                 Log.Warning($"{LogPrefix} Ability " + $"{JetJumpAbilityDefName} has unexpected verb type " +
-                            $"{_verb.GetType().FullName}.");
+                            $"{verb.GetType().FullName}.");
                 continue;
             }
 
-            return _verb;
+            return verb;
         }
 
         return null;
     }
 
-    private static bool HasJetJumpAbility(Pawn _pawn)
+    private static bool HasJetJumpAbility(Pawn pawn)
     {
-        if (_pawn?.abilities?.abilities == null)
+        if (pawn?.abilities?.abilities == null)
             return false;
 
-        foreach (var _ability in _pawn.abilities.abilities)
-            if (_ability?.def?.defName == JetJumpAbilityDefName)
+        foreach (var ability in pawn.abilities.abilities)
+            if (ability?.def?.defName == JetJumpAbilityDefName)
                 return true;
 
         return false;
     }
 
-    private static bool IsJetJumpVerb(Verb _verb)
+    private static bool IsJetJumpVerb(Verb verb)
     {
-        if (_verb == null)
+        if (verb == null)
             return false;
 
-        return _verb.GetType().FullName == JetJumpVerbTypeName;
+        return verb.GetType().FullName == JetJumpVerbTypeName;
     }
 
-    private static bool IsCastJumpJob(Job _job)
+    private static bool IsCastJumpJob(Job job)
     {
-        return _job?.def?.defName == CastJumpJobDefName;
+        return job?.def?.defName == CastJumpJobDefName;
     }
 
-    private static bool IsCastJumpDriver(JobDriver _driver)
+    private static bool IsCastJumpDriver(JobDriver driver)
     {
-        return IsCastJumpJob(_driver?.job);
+        return IsCastJumpJob(driver?.job);
     }
 
     private sealed class SavedVerbState

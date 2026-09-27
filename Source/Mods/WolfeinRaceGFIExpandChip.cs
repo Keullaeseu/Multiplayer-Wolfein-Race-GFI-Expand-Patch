@@ -7,7 +7,7 @@ using Verse;
 
 namespace MultiplayerWolfeinRaceGFIExpandPatch.Source.Mods;
 
-public static class WolfeinRaceGfiExpandChipPatch
+public static class WolfeinRaceGfiExpandChip
 {
     private const string LogPrefix = "[Multiplayer Wolfein Race GFI Expand Chip Patch]";
 
@@ -31,17 +31,23 @@ public static class WolfeinRaceGfiExpandChipPatch
         compLoadOutSlotsType = WolfeinRaceGfiExpandHelpers.GetTypeByName(LogPrefix, CompLoadOutSlotsName);
         chipBillType = WolfeinRaceGfiExpandHelpers.GetTypeByName(LogPrefix, ChipBillName);
 
-        chipSlotsGetAllBills = AccessTools.DeclaredMethod(
-            compChipSlotsType,
-            GetAllBillsMethodName,
-            Type.EmptyTypes
-        );
+        if (compChipSlotsType != null)
+        {
+            chipSlotsGetAllBills = AccessTools.DeclaredMethod(
+                compChipSlotsType,
+                GetAllBillsMethodName,
+                Type.EmptyTypes
+            );
+        }
 
-        loadOutSlotsGetAllBills = AccessTools.DeclaredMethod(
-            compLoadOutSlotsType,
-            GetAllBillsMethodName,
-            Type.EmptyTypes
-        );
+        if (compLoadOutSlotsType != null)
+        {
+            loadOutSlotsGetAllBills = AccessTools.DeclaredMethod(
+                compLoadOutSlotsType,
+                GetAllBillsMethodName,
+                Type.EmptyTypes
+            );
+        }
 
         RegisterChip();
 
@@ -79,110 +85,110 @@ public static class WolfeinRaceGfiExpandChipPatch
         );
     }
 
-    private static void RegisterMethods(Type _type)
+    private static void RegisterMethods(Type componentType)
     {
-        MP.RegisterSyncMethod(_type, "AddInstallBill");
-        MP.RegisterSyncMethod(_type, "AddUninstallBill");
-        MP.RegisterSyncMethod(_type, "RemoveBill");
+        MP.RegisterSyncMethod(componentType, "AddInstallBill");
+        MP.RegisterSyncMethod(componentType, "AddUninstallBill");
+        MP.RegisterSyncMethod(componentType, "RemoveBill");
     }
 
     #endregion
 
     #region SyncChipBill
 
-    private static void SyncChipBill(SyncWorker _syncWorker, ref object _bill)
+    private static void SyncChipBill(SyncWorker syncWorker, ref object bill)
     {
-        if (_syncWorker.isWriting)
+        if (syncWorker.isWriting)
         {
-            var (_owner, _isLoadOut, _index) =
-                FindChipBillOwner(_bill);
+            var (owner, isLoadOut, billIndex) =
+                FindChipBillOwner(bill);
 
-            _syncWorker.Write(_owner);
-            _syncWorker.Write(_isLoadOut);
-            _syncWorker.Write(_index);
+            syncWorker.Write(owner);
+            syncWorker.Write(isLoadOut);
+            syncWorker.Write(billIndex);
 
             return;
         }
 
-        var _pawnRead = _syncWorker.Read<Pawn>();
-        var _isLoadOutRead = _syncWorker.Read<bool>();
-        var _indexRead = _syncWorker.Read<int>();
+        var readPawn = syncWorker.Read<Pawn>();
+        var readIsLoadOut = syncWorker.Read<bool>();
+        var readBillIndex = syncWorker.Read<int>();
 
-        _bill = null;
+        bill = null;
 
-        if (_pawnRead == null || _indexRead < 0)
+        if (readPawn == null || readBillIndex < 0)
             return;
 
-        var _componentType = _isLoadOutRead
+        var componentType = readIsLoadOut
             ? compLoadOutSlotsType
             : compChipSlotsType;
 
-        var _component = _pawnRead.AllComps?
-            .FirstOrDefault(_comp => _comp.GetType() == _componentType);
+        var component = readPawn.AllComps?
+            .FirstOrDefault(thingComp => thingComp.GetType() == componentType);
 
-        if (_component == null)
+        if (component == null)
             return;
 
-        var _getAllBillsMethod = _isLoadOutRead
+        var getAllBillsMethod = readIsLoadOut
             ? loadOutSlotsGetAllBills
             : chipSlotsGetAllBills;
 
-        if (_getAllBillsMethod == null)
+        if (getAllBillsMethod == null)
             return;
 
-        var _result = _getAllBillsMethod.Invoke(_component, null);
+        var billsResult = getAllBillsMethod.Invoke(component, null);
 
-        if (_result is not IList _bills)
+        if (billsResult is not IList bills)
             return;
 
-        if (_indexRead < 0 || _indexRead >= _bills.Count)
+        if (readBillIndex < 0 || readBillIndex >= bills.Count)
             return;
 
-        _bill = _bills[_indexRead];
+        bill = bills[readBillIndex];
     }
 
     private static (Pawn owner, bool isLoadOut, int index)
-        FindChipBillOwner(object _bill)
+        FindChipBillOwner(object bill)
     {
-        if (_bill == null)
+        if (bill == null)
             return (null, false, -1);
 
-        foreach (var _pawn in PawnsFinder.AllMapsWorldAndTemporary_Alive)
+        foreach (var pawn in PawnsFinder.AllMapsWorldAndTemporary_Alive)
         {
-            if (_pawn == null)
+            if (pawn == null)
                 continue;
 
-            var _chipComponent = _pawn.AllComps?
-                .FirstOrDefault(_comp => _comp.GetType() == compChipSlotsType);
+            var chipComponent = pawn.AllComps?
+                .FirstOrDefault(thingComp => thingComp.GetType() == compChipSlotsType);
 
-            if (_chipComponent != null)
+            if (chipComponent != null)
             {
-                var _bills = GetBills(
-                    _chipComponent,
+                var chipBills = GetBills(
+                    chipComponent,
                     chipSlotsGetAllBills
                 );
 
-                var _index = IndexOfReference(_bills, _bill);
+                var chipBillIndex = IndexOfReference(chipBills, bill);
 
-                if (_index >= 0)
-                    return (_pawn, false, _index);
+                if (chipBillIndex >= 0)
+                    return (pawn, false, chipBillIndex);
             }
 
-            var _loadOutComponent = _pawn.AllComps?
-                .FirstOrDefault(_comp => _comp.GetType() == compLoadOutSlotsType);
+            var loadOutComponent = pawn.AllComps?
+                .FirstOrDefault(thingComp => thingComp.GetType() == compLoadOutSlotsType);
 
-            if (_loadOutComponent == null)
+            if (loadOutComponent == null)
                 continue;
             {
-                var _bills = GetBills(
-                    _loadOutComponent,
+                var loadOutBills = GetBills(
+                    loadOutComponent,
                     loadOutSlotsGetAllBills
                 );
 
-                var _index = IndexOfReference(_bills, _bill);
+                var loadOutBillIndex = IndexOfReference(loadOutBills, bill);
 
-                if (_index >= 0)
-                    return (_pawn, true, _index);
+                if (loadOutBillIndex >= 0)
+                    return (pawn, true, loadOutBillIndex);
             }
         }
 
@@ -192,23 +198,23 @@ public static class WolfeinRaceGfiExpandChipPatch
     }
 
     private static IList GetBills(
-        ThingComp _component,
-        MethodInfo _getAllBillsMethod)
+        ThingComp component,
+        MethodInfo getAllBillsMethod)
     {
-        if (_component == null || _getAllBillsMethod == null)
+        if (component == null || getAllBillsMethod == null)
             return null;
 
-        return _getAllBillsMethod.Invoke(_component, null) as IList;
+        return getAllBillsMethod.Invoke(component, null) as IList;
     }
 
-    private static int IndexOfReference(IList _list, object _item)
+    private static int IndexOfReference(IList billList, object billItem)
     {
-        if (_list == null || _item == null)
+        if (billList == null || billItem == null)
             return -1;
 
-        for (var _index = 0; _index < _list.Count; _index++)
-            if (ReferenceEquals(_list[_index], _item))
-                return _index;
+        for (var billIndex = 0; billIndex < billList.Count; billIndex++)
+            if (ReferenceEquals(billList[billIndex], billItem))
+                return billIndex;
 
         return -1;
     }

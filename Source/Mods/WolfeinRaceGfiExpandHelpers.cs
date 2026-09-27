@@ -7,13 +7,13 @@ public static class WolfeinRaceGfiExpandHelpers
 {
     #region Getters
 
-    public static Type GetTypeByName(string _logPrefix, string _typeName)
+    public static Type GetTypeByName(string logPrefix, string typeName)
     {
-        var _type = AccessTools.TypeByName(_typeName);
-        if (_type != null)
-            return _type;
+        var foundType = AccessTools.TypeByName(typeName);
+        if (foundType != null)
+            return foundType;
 
-        Log.Warning($"{_logPrefix} Could not find {_typeName}.");
+        Log.Warning($"{logPrefix} Could not find {typeName}.");
 
         return null;
     }

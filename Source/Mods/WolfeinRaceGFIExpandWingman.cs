@@ -1,18 +1,14 @@
 ﻿using Multiplayer.API;
-using Multiplayer.Compat;
 using Verse;
 using static HarmonyLib.AccessTools;
 
 namespace MultiplayerWolfeinRaceGFIExpandPatch.Source.Mods;
 
-public static class WolfeinRaceGFIExpandWingmanPatch
+public static class WolfeinRaceGFIExpandWingman
 {
     private const string LogPrefix = "[Multiplayer Wolfein Race GFI Expand Wingman Patch]";
 
     private const string StorageTypeName = "JL_WolfeinExpand.CompWingmanStorage";
-
-    private const string TurretGunName = "JL_WolfeinExpand.HediffComp_TurretGun";
-    private const string WeaponFireModeSwitchName = "JL_WolfeinExpand.CompWeaponFireModeSwitch";
 
     public static void Patch()
     {
@@ -20,62 +16,46 @@ public static class WolfeinRaceGFIExpandWingmanPatch
 
         RegisterStorageActions();
         WolfeinRaceGFIExpandWingmanDroneRechargePatch.Patch();
-        WolfeinRaceGFIExpandWingmanDroneRechargePatch.RegisterDroneRecharge();
         WolfeinRaceGFIExpandWingmanDroneUIPatch.Patch();
         WolfeinRaceGFIExpandWingmanDroneUIPatch.RegisterSyncMethods();
-        RegisterMethods();
+        WolfeinRaceGFIExpandWingmanDroneForceDraftablePatch.Patch();
 
         Log.Message($"{LogPrefix} Initialized.");
     }
 
     #region Registers
 
-    private static void RegisterMethods()
-    {
-        MpCompat.RegisterLambdaMethod(TurretGunName, "CompGetGizmos", 0, 1);
-
-        var _weaponFireModeSwitchType = TypeByName(WeaponFireModeSwitchName);
-        if (_weaponFireModeSwitchType == null)
-        {
-            Log.Warning($"{LogPrefix} Could not find {WeaponFireModeSwitchName}.");
-            return;
-        }
-
-        MP.RegisterSyncMethod(_weaponFireModeSwitchType, "SwitchFireMode");
-    }
-
     private static void RegisterStorageActions()
     {
-        var _storageType =
-            TypeByName(StorageTypeName);
+        var storageType = TypeByName(StorageTypeName);
 
-        if (_storageType == null)
+        if (storageType == null)
         {
             Log.Warning($"{LogPrefix} Could not find {StorageTypeName}.");
             return;
         }
 
-        RegisterSyncMethod(_storageType, "DeployAllDrones");
-        RegisterSyncMethod(_storageType, "DeployDrone");
+        RegisterSyncMethod(storageType, "DeployAllDrones");
+        RegisterSyncMethod(storageType, "DeployDrone");
 
-        RegisterSyncMethod(_storageType, "TryAddDrone");
-        RegisterSyncMethod(_storageType, "TryAddDroneToSlot");
+        RegisterSyncMethod(storageType, "TryAddDrone");
+        RegisterSyncMethod(storageType, "TryAddDroneToSlot");
 
-        RegisterSyncMethod(_storageType, "RemoveStoredDroneForTransfer");
-        RegisterSyncMethod(_storageType, "RestoreStoredDroneFromTransfer");
+        RegisterSyncMethod(storageType, "RemoveStoredDroneForTransfer");
+        RegisterSyncMethod(storageType, "RestoreStoredDroneFromTransfer");
     }
 
-    private static void RegisterSyncMethod(Type _declaringType, string _methodName)
+    private static void RegisterSyncMethod(Type declaringType, string methodName)
     {
-        var _method = Method(_declaringType, _methodName);
+        var targetMethod = Method(declaringType, methodName);
 
-        if (_method == null)
+        if (targetMethod == null)
         {
-            Log.Warning($"{LogPrefix} Could not find sync method " + $"{_declaringType.FullName}.{_methodName}.");
+            Log.Warning($"{LogPrefix} Could not find sync method " + $"{declaringType.FullName}.{methodName}.");
             return;
         }
 
-        MP.RegisterSyncMethod(_declaringType, _methodName);
+        MP.RegisterSyncMethod(declaringType, methodName);
     }
 
     #endregion

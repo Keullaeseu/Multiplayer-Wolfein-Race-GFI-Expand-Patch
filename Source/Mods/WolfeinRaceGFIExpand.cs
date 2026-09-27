@@ -8,11 +8,11 @@ namespace MultiplayerWolfeinRaceGFIExpandPatch.Source.Mods;
 ///     https://steamcommunity.com/sharedfiles/filedetails/?id=3699095346
 /// </summary>
 [MpCompatFor("JL.WolfeinGFIExpanded")]
-public class WolfeinRaceGFIExpandPatch
+public class WolfeinRaceGFIExpand
 {
     private const string LogPrefix = "[Multiplayer Wolfein Race GFI Expand Patch]";
 
-    public WolfeinRaceGFIExpandPatch(ModContentPack _content)
+    public WolfeinRaceGFIExpand(ModContentPack content)
     {
         LongEventHandler.ExecuteWhenFinished(LatePatch);
     }
@@ -21,13 +21,16 @@ public class WolfeinRaceGFIExpandPatch
     {
         Log.Message($"{LogPrefix} Initializing...");
 
-        WolfeinRaceGfiExpandChipPatch.Patch();
-        WolfeinRaceGFIExpandRandomPatch.Patch();
-        WolfeinRaceGFIExpandEnergyShieldPatch.Patch();
-        WolfeinRaceGFIExpandWingmanPatch.Patch();
-        WolfeinRaceGFIExpandArtificialMoonPatch.Patch();
-        WolfeinRaceGFIExpandHairStylePatch.Patch();
-        WolfeinRaceGFIExpandAbilityPatch.Patch();
+        WolfeinRaceGfiExpandChip.Patch();
+        WolfeinRaceGFIExpandRandom.Patch();
+        WolfeinRaceGFIExpandEnergyShield.Patch();
+        WolfeinRaceGFIExpandWingman.Patch();
+        WolfeinRaceGFIExpandArtificialMoon.Patch();
+        WolfeinRaceGFIExpandHairStyle.Patch();
+        WolfeinRaceGFIExpandAbility.Patch();
+        WolfeinRaceGFIExpandWeapon.Patch();
+        WolfeinRaceGFIExpandHologram.Patch();
+        WolfeinRaceGFIExpandTurret.Patch();
 
         Log.Message($"{LogPrefix} Initialized.");
     }

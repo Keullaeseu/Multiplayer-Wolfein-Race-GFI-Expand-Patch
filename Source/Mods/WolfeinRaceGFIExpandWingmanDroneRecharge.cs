@@ -22,55 +22,87 @@ public static class WolfeinRaceGFIExpandWingmanDroneRechargePatch
         Log.Message($"{LogPrefix} Initializing...");
 
         PatchWingmanSystem();
+        RegisterSyncFields();
         PatchRechargeDialog();
 
         Log.Message($"{LogPrefix} Initialized.");
     }
 
-    public static void RegisterDroneRecharge()
+    private static void RegisterSyncFields()
     {
-        droneRechargeThresholdsField = MP.RegisterSyncField(wingmanSystemType, "_droneRechargeThresholds");
-        MP.RegisterSyncField(wingmanSystemType, "currentWorkMode");
+        if (wingmanSystemType == null)
+            return;
+
+        var rechargeField = Field(wingmanSystemType, "_droneRechargeThresholds");
+        if (rechargeField == null)
+        {
+            Log.Warning($"{LogPrefix} Could not find HediffComp_WingmanSystem._droneRechargeThresholds.");
+        }
+        else
+        {
+            droneRechargeThresholdsField = MP.RegisterSyncField(wingmanSystemType, "_droneRechargeThresholds");
+            Log.Message($"{LogPrefix} Registered _droneRechargeThresholds sync field.");
+        }
+
+        // currentWorkMode is set via synced SetWorkMode (drone UI patch),
+        // but also register it so direct sets converge if the mod ever
+        // assigns it elsewhere.
+        var workModeField = Field(wingmanSystemType, "currentWorkMode");
+        if (workModeField == null)
+        {
+            Log.Warning($"{LogPrefix} Could not find HediffComp_WingmanSystem.currentWorkMode.");
+        }
+        else
+        {
+            MP.RegisterSyncField(wingmanSystemType, "currentWorkMode");
+            Log.Message($"{LogPrefix} Registered currentWorkMode sync field.");
+        }
     }
 
     private static void PatchWingmanSystem()
     {
         wingmanSystemType = TypeByName(WingmanSystemTypeName);
-        if (wingmanSystemType == null)
-        {
-            Log.Warning($"{LogPrefix} Could not find {WingmanSystemTypeName}.");
-            return;
-        }
-
-        var _rechargeField = Field(wingmanSystemType, "_droneRechargeThresholds");
-        if (_rechargeField == null)
-            Log.Warning($"{LogPrefix} Could not find " + "HediffComp_WingmanSystem._droneRechargeThresholds.");
+        if (wingmanSystemType == null) Log.Warning($"{LogPrefix} Could not find {WingmanSystemTypeName}.");
     }
 
     private static void PatchRechargeDialog()
     {
-        var _dialogType = TypeByName(RechargeDialogTypeName);
+        var dialogType = TypeByName(RechargeDialogTypeName);
 
-        var _wingmanSystemType = TypeByName(WingmanSystemTypeName);
+        var resolvedWingmanSystemType = TypeByName(WingmanSystemTypeName);
 
-        if (_dialogType == null || _wingmanSystemType == null)
+        if (dialogType == null || resolvedWingmanSystemType == null)
         {
             Log.Warning($"{LogPrefix} Could not find recharge-dialog types.");
             return;
         }
 
-        dialogWingmanSystemField = FieldRefAccess<object>(_dialogType, "wingmanSystem");
-
-        var _doWindowContents = DeclaredMethod(_dialogType, "DoWindowContents");
-
-        if (_doWindowContents == null)
+        if (droneRechargeThresholdsField == null)
         {
-            Log.Warning($"{LogPrefix} Could not find " + "Dialog_DroneRechargeSettings.DoWindowContents.");
+            Log.Warning($"{LogPrefix} Sync field missing, skipping dialog Watch patch.");
+            return;
+        }
+
+        try
+        {
+            dialogWingmanSystemField = FieldRefAccess<object>(dialogType, "wingmanSystem");
+        }
+        catch (Exception exception)
+        {
+            Log.Warning($"{LogPrefix} Could not bind Dialog_DroneRechargeSettings.wingmanSystem: {exception.Message}");
+            return;
+        }
+
+        var doWindowContents = DeclaredMethod(dialogType, "DoWindowContents");
+
+        if (doWindowContents == null)
+        {
+            Log.Warning($"{LogPrefix} Could not find Dialog_DroneRechargeSettings.DoWindowContents.");
             return;
         }
 
         MpCompat.harmony.Patch(
-            _doWindowContents,
+            doWindowContents,
             new HarmonyMethod(
                 typeof(WolfeinRaceGFIExpandWingmanDroneRechargePatch),
                 nameof(DroneRechargeDialogPrefix)),
@@ -86,17 +118,27 @@ public static class WolfeinRaceGFIExpandWingmanDroneRechargePatch
         if (!MP.IsInMultiplayer)
             return;
 
-        if (dialogWingmanSystemField == null)
+        if (MP.IsExecutingSyncCommand)
             return;
 
-        var _wingmanSystem =
-            dialogWingmanSystemField(__instance);
+        if (dialogWingmanSystemField == null || droneRechargeThresholdsField == null)
+            return;
 
-        if (_wingmanSystem == null)
+        object wingmanSystem;
+        try
+        {
+            wingmanSystem = dialogWingmanSystemField(__instance);
+        }
+        catch
+        {
+            return;
+        }
+
+        if (wingmanSystem == null)
             return;
 
         MP.WatchBegin();
-        droneRechargeThresholdsField.Watch(_wingmanSystem);
+        droneRechargeThresholdsField.Watch(wingmanSystem);
 
         __state = true;
     }

@@ -9,21 +9,24 @@ using Verse;
 
 namespace MultiplayerWolfeinRaceGFIExpandPatch.Source.Mods;
 
-public static class WolfeinRaceGFIExpandHairStylePatch
+public static class WolfeinRaceGFIExpandHairStyle
 {
     private const string LogPrefix = "[Multiplayer Wolfein Race GFI Expand Hair Style Patch]";
 
     private const string HairStyleSelectorName = "JL_WolfeinExpand.Dialog_HairStyleSelector";
+    private const string WolfeinUiDialogName = "JL_WolfeinExpand.Dialog_WolfeinUI";
 
     private static FieldInfo savedHairStyleField;
+    private static FieldInfo savedZoomLevelField;
     private static MethodInfo setHairStyleMethod;
+    private static MethodInfo setZoomLevelMethod;
 
     public static void Patch()
     {
         Log.Message($"{LogPrefix} Initializing...");
 
-        var _dialogType = WolfeinRaceGfiExpandHelpers.GetTypeByName(LogPrefix, HairStyleSelectorName);
         savedHairStyleField = AccessTools.Field(typeof(CompWolfeinUI), "savedHairStyle");
+        savedZoomLevelField = AccessTools.Field(typeof(CompWolfeinUI), "savedZoomLevel");
 
         if (savedHairStyleField == null)
         {
@@ -31,59 +34,134 @@ public static class WolfeinRaceGFIExpandHairStylePatch
             return;
         }
 
-        setHairStyleMethod = AccessTools.Method(typeof(WolfeinRaceGFIExpandHairStylePatch), nameof(SetHairStyle));
+        if (savedZoomLevelField == null)
+            Log.Warning($"{LogPrefix} CompWolfeinUI.savedZoomLevel was not found, zoom sync disabled.");
 
-        MP.RegisterSyncMethod(typeof(WolfeinRaceGFIExpandHairStylePatch), nameof(SetHairStyle));
+        setHairStyleMethod = AccessTools.Method(typeof(WolfeinRaceGFIExpandHairStyle), nameof(SetHairStyle));
+        setZoomLevelMethod = AccessTools.Method(typeof(WolfeinRaceGFIExpandHairStyle), nameof(SetZoomLevel));
 
-        var _doWindowContents = AccessTools.Method(_dialogType, "DoWindowContents", new[] { typeof(Rect) });
+        MP.RegisterSyncMethod(typeof(WolfeinRaceGFIExpandHairStyle), nameof(SetHairStyle));
+        if (setZoomLevelMethod != null)
+            MP.RegisterSyncMethod(typeof(WolfeinRaceGFIExpandHairStyle), nameof(SetZoomLevel));
 
-        if (_doWindowContents == null)
-        {
-            Log.Error($"{LogPrefix} DoWindowContents was not found.");
-            return;
-        }
-
-        MpCompat.harmony.Patch(
-            _doWindowContents,
-            transpiler: new HarmonyMethod(
-                typeof(WolfeinRaceGFIExpandHairStylePatch),
-                nameof(DoWindowContentsTranspiler)));
+        PatchHairSelector();
+        PatchWolfeinUiZoom();
 
         Log.Message($"{LogPrefix} Initialized.");
     }
 
-    public static void SetHairStyle(CompWolfeinUI _comp, string _hairStyle)
+    private static void PatchHairSelector()
     {
-        if (_comp == null)
+        var dialogType = WolfeinRaceGfiExpandHelpers.GetTypeByName(LogPrefix, HairStyleSelectorName);
+        if (dialogType == null)
             return;
 
-        _comp.savedHairStyle = _hairStyle;
+        var doWindowContents = AccessTools.Method(dialogType, "DoWindowContents", new[] { typeof(Rect) });
 
-        if (_comp.parent is Pawn _pawn) _pawn.Drawer.renderer.SetAllGraphicsDirty();
+        if (doWindowContents == null)
+        {
+            Log.Error($"{LogPrefix} Hair selector DoWindowContents was not found.");
+            return;
+        }
+
+        MpCompat.harmony.Patch(
+            doWindowContents,
+            transpiler: new HarmonyMethod(
+                typeof(WolfeinRaceGFIExpandHairStyle),
+                nameof(DoWindowContentsTranspiler)));
+
+        Log.Message($"{LogPrefix} Patched hair selector DoWindowContents.");
     }
 
-    private static IEnumerable<CodeInstruction> DoWindowContentsTranspiler(IEnumerable<CodeInstruction> _instructions)
+    private static void PatchWolfeinUiZoom()
     {
-        var _replaced = false;
+        if (savedZoomLevelField == null || setZoomLevelMethod == null)
+            return;
 
-        foreach (var _instruction in _instructions)
-            if (!_replaced &&
-                _instruction.opcode == OpCodes.Stfld &&
-                _instruction.operand is FieldInfo _field &&
-                _field == savedHairStyleField)
+        var dialogType = WolfeinRaceGfiExpandHelpers.GetTypeByName(LogPrefix, WolfeinUiDialogName);
+        if (dialogType == null)
+            return;
+
+        var doWindowContents = AccessTools.Method(dialogType, "DoWindowContents", new[] { typeof(Rect) });
+        if (doWindowContents == null)
+        {
+            Log.Warning($"{LogPrefix} WolfeinUI DoWindowContents was not found, zoom sync disabled.");
+            return;
+        }
+
+        MpCompat.harmony.Patch(
+            doWindowContents,
+            transpiler: new HarmonyMethod(
+                typeof(WolfeinRaceGFIExpandHairStyle),
+                nameof(ZoomTranspiler)));
+
+        Log.Message($"{LogPrefix} Patched WolfeinUI zoom assignments.");
+    }
+
+    public static void SetHairStyle(CompWolfeinUI comp, string hairStyle)
+    {
+        if (comp == null)
+            return;
+
+        comp.savedHairStyle = hairStyle;
+
+        if (comp.parent is Pawn pawn)
+            pawn.Drawer.renderer.SetAllGraphicsDirty();
+    }
+
+    public static void SetZoomLevel(CompWolfeinUI comp, float zoom)
+    {
+        if (comp == null)
+            return;
+
+        comp.savedZoomLevel = Mathf.Clamp(zoom, 0.5f, 2f);
+    }
+
+    private static IEnumerable<CodeInstruction> DoWindowContentsTranspiler(IEnumerable<CodeInstruction> instructions)
+    {
+        var replaced = false;
+
+        foreach (var instruction in instructions)
+            if (!replaced &&
+                instruction.opcode == OpCodes.Stfld &&
+                instruction.operand is FieldInfo field &&
+                field == savedHairStyleField)
             {
                 yield return new CodeInstruction(
                     OpCodes.Call,
                     setHairStyleMethod);
 
-                _replaced = true;
+                replaced = true;
             }
             else
             {
-                yield return _instruction;
+                yield return instruction;
             }
 
-        if (!_replaced)
+        if (!replaced)
             Log.Error($"{LogPrefix} Could not replace savedHairStyle assignment.");
+    }
+
+    private static IEnumerable<CodeInstruction> ZoomTranspiler(IEnumerable<CodeInstruction> instructions)
+    {
+        var replaced = 0;
+
+        foreach (var instruction in instructions)
+            if (instruction.opcode == OpCodes.Stfld &&
+                instruction.operand is FieldInfo field &&
+                field == savedZoomLevelField)
+            {
+                yield return new CodeInstruction(OpCodes.Call, setZoomLevelMethod);
+                replaced++;
+            }
+            else
+            {
+                yield return instruction;
+            }
+
+        if (replaced == 0)
+            Log.Warning($"{LogPrefix} Could not replace savedZoomLevel assignments.");
+        else
+            Log.Message($"{LogPrefix} Replaced {replaced} savedZoomLevel assignments.");
     }
 }
