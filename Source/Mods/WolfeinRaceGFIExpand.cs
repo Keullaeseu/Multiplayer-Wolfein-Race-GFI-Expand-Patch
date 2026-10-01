@@ -4,8 +4,9 @@ using Verse;
 namespace MultiplayerWolfeinRaceGFIExpandPatch.Source.Mods;
 
 /// <summary>
-///     Multiplayer Patch for Wolfein Race GFI Expand by 静流的笨蛋喵, Last Update: 2 Aug @ 5:23pm 2026
-///     https://steamcommunity.com/sharedfiles/filedetails/?id=3699095346
+///     Multiplayer Patch for Wolfein Race GFI Expand by 静流的笨蛋喵,
+///     Last Update: 2 Aug @ 5:23pm 2026
+///     <see href="https://steamcommunity.com/sharedfiles/filedetails/?id=3699095346" />
 /// </summary>
 [MpCompatFor("JL.WolfeinGFIExpanded")]
 public class WolfeinRaceGFIExpand
