@@ -34,6 +34,7 @@ public class WolfeinRaceGFIExpand
         SafePatch(WolfeinRaceGFIExpandWeapon.Patch);
         SafePatch(WolfeinRaceGFIExpandHologram.Patch);
         SafePatch(WolfeinRaceGFIExpandTurret.Patch);
+        SafePatch(WolfeinRaceGFIExpandManagedVerbs.Patch);
 
         Log.Message($"{LogPrefix} Initialized.");
     }
