@@ -1,16 +1,17 @@
 ﻿using HarmonyLib;
-using Multiplayer.Compat;
 using Verse;
 
 namespace MultiplayerWolfeinRaceGFIExpandPatch.Source.Mods;
 
 /// <summary>
 ///     CompForceDraftable adds a Draft/Undraft Command_Toggle for drones that lack
-///     a vanilla drafter. Vanilla drafting is already synced by MP
-///     (Pawn_DraftController), but the custom gizmo lambda that flips
-///     Drafted must also be synced, otherwise the toggle only applies locally.
+///     a vanilla drafter. The mod IL shows both lambdas as instance methods
+///     directly on the comp: b__6_0 is the bool isActive getter (UI-only),
+///     b__6_1 is the void toggleAction (flips Drafted + plays the sound).
+///     The void return-type filter picks exactly the toggle, so the getter
+///     can never be synced by accident (it runs every frame).
 /// </summary>
-public static class WolfeinRaceGFIExpandWingmanDroneForceDraftablePatch
+public static class WolfeinRaceGFIExpandWingmanDroneForceDraftable
 {
     private const string LogPrefix = "[Multiplayer Wolfein Race GFI Expand Wingman Drone Force Draftable Patch]";
 
@@ -27,23 +28,16 @@ public static class WolfeinRaceGFIExpandWingmanDroneForceDraftablePatch
             return;
         }
 
-        // CompGetGizmosExtra yields a single draft toggle; its toggleAction is
-        // lambda 0. Best effort - if ordinals shift, MP logs and drafting falls
-        // back to vanilla sync (still better than nothing).
-        try
+        var synced =
+            WolfeinRaceGFIExpandLambdaSync.SyncParentLambdas(forceDraftableType, "CompGetGizmosExtra", typeof(void));
+
+        if (synced != 1)
         {
-            MpCompat.RegisterLambdaMethod(ForceDraftableName, "CompGetGizmosExtra", 0);
-            Log.Message($"{LogPrefix} Registered draft toggle lambda.");
-        }
-        catch (Exception exception)
-        {
-            Log.Warning($"{LogPrefix} Could not register draft toggle lambda: {exception.Message}");
+            Log.Warning(
+                $"{LogPrefix} Expected 1 draft toggle, synced {synced}.");
+            return;
         }
 
-        Log.Message($"{LogPrefix} Initialized.");
-    }
-
-    public static void RegisterSyncMethods()
-    {
+        Log.Message($"{LogPrefix} Patched {ForceDraftableName}.CompGetGizmosExtra().");
     }
 }

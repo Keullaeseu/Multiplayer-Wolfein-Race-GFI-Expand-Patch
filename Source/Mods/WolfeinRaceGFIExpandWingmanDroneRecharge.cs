@@ -6,7 +6,7 @@ using static HarmonyLib.AccessTools;
 
 namespace MultiplayerWolfeinRaceGFIExpandPatch.Source.Mods;
 
-public static class WolfeinRaceGFIExpandWingmanDroneRechargePatch
+public static class WolfeinRaceGFIExpandWingmanDroneRecharge
 {
     private const string LogPrefix = "[Multiplayer Wolfein Race GFI Expand Wingman Drone Recharge Patch]";
 
@@ -104,10 +104,10 @@ public static class WolfeinRaceGFIExpandWingmanDroneRechargePatch
         MpCompat.harmony.Patch(
             doWindowContents,
             new HarmonyMethod(
-                typeof(WolfeinRaceGFIExpandWingmanDroneRechargePatch),
+                typeof(WolfeinRaceGFIExpandWingmanDroneRecharge),
                 nameof(DroneRechargeDialogPrefix)),
             new HarmonyMethod(
-                typeof(WolfeinRaceGFIExpandWingmanDroneRechargePatch),
+                typeof(WolfeinRaceGFIExpandWingmanDroneRecharge),
                 nameof(DroneRechargeDialogPostfix)));
     }
 

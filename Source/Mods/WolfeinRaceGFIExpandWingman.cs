@@ -15,10 +15,10 @@ public static class WolfeinRaceGFIExpandWingman
         Log.Message($"{LogPrefix} Initializing...");
 
         RegisterStorageActions();
-        WolfeinRaceGFIExpandWingmanDroneRechargePatch.Patch();
-        WolfeinRaceGFIExpandWingmanDroneUIPatch.Patch();
-        WolfeinRaceGFIExpandWingmanDroneUIPatch.RegisterSyncMethods();
-        WolfeinRaceGFIExpandWingmanDroneForceDraftablePatch.Patch();
+        WolfeinRaceGFIExpandWingmanDroneRecharge.Patch();
+        WolfeinRaceGFIExpandWingmanDroneUI.Patch();
+        WolfeinRaceGFIExpandWingmanDroneUI.RegisterSyncMethods();
+        WolfeinRaceGFIExpandWingmanDroneForceDraftable.Patch();
 
         Log.Message($"{LogPrefix} Initialized.");
     }

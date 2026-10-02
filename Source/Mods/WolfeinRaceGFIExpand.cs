@@ -22,17 +22,31 @@ public class WolfeinRaceGFIExpand
     {
         Log.Message($"{LogPrefix} Initializing...");
 
-        WolfeinRaceGfiExpandChip.Patch();
-        WolfeinRaceGFIExpandRandom.Patch();
-        WolfeinRaceGFIExpandEnergyShield.Patch();
-        WolfeinRaceGFIExpandWingman.Patch();
-        WolfeinRaceGFIExpandArtificialMoon.Patch();
-        WolfeinRaceGFIExpandHairStyle.Patch();
-        WolfeinRaceGFIExpandAbility.Patch();
-        WolfeinRaceGFIExpandWeapon.Patch();
-        WolfeinRaceGFIExpandHologram.Patch();
-        WolfeinRaceGFIExpandTurret.Patch();
+        // Each block is isolated: a bad lookup in one GFI update
+        // must not prevent the remaining patches from registering.
+        SafePatch(WolfeinRaceGFIExpandChip.Patch);
+        SafePatch(WolfeinRaceGFIExpandRandom.Patch);
+        SafePatch(WolfeinRaceGFIExpandEnergyShield.Patch);
+        SafePatch(WolfeinRaceGFIExpandWingman.Patch);
+        SafePatch(WolfeinRaceGFIExpandArtificialMoon.Patch);
+        SafePatch(WolfeinRaceGFIExpandHairStyle.Patch);
+        SafePatch(WolfeinRaceGFIExpandAbility.Patch);
+        SafePatch(WolfeinRaceGFIExpandWeapon.Patch);
+        SafePatch(WolfeinRaceGFIExpandHologram.Patch);
+        SafePatch(WolfeinRaceGFIExpandTurret.Patch);
 
         Log.Message($"{LogPrefix} Initialized.");
+    }
+
+    private static void SafePatch(Action patch)
+    {
+        try
+        {
+            patch();
+        }
+        catch (Exception exception)
+        {
+            Log.Error($"{LogPrefix} Patch {patch.Method.Name} failed: {exception}");
+        }
     }
 }

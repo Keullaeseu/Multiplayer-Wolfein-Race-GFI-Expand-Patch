@@ -3,7 +3,7 @@ using Verse;
 
 namespace MultiplayerWolfeinRaceGFIExpandPatch.Source.Mods;
 
-public static class WolfeinRaceGfiExpandHelpers
+public static class WolfeinRaceGFIExpandHelpers
 {
     #region Getters
 

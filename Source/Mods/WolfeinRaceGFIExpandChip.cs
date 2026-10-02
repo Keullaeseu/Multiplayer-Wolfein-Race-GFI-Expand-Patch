@@ -7,7 +7,7 @@ using Verse;
 
 namespace MultiplayerWolfeinRaceGFIExpandPatch.Source.Mods;
 
-public static class WolfeinRaceGfiExpandChip
+public static class WolfeinRaceGFIExpandChip
 {
     private const string LogPrefix = "[Multiplayer Wolfein Race GFI Expand Chip Patch]";
 
@@ -27,27 +27,23 @@ public static class WolfeinRaceGfiExpandChip
     {
         Log.Message($"{LogPrefix} Initializing...");
 
-        compChipSlotsType = WolfeinRaceGfiExpandHelpers.GetTypeByName(LogPrefix, CompChipSlotsName);
-        compLoadOutSlotsType = WolfeinRaceGfiExpandHelpers.GetTypeByName(LogPrefix, CompLoadOutSlotsName);
-        chipBillType = WolfeinRaceGfiExpandHelpers.GetTypeByName(LogPrefix, ChipBillName);
+        compChipSlotsType = WolfeinRaceGFIExpandHelpers.GetTypeByName(LogPrefix, CompChipSlotsName);
+        compLoadOutSlotsType = WolfeinRaceGFIExpandHelpers.GetTypeByName(LogPrefix, CompLoadOutSlotsName);
+        chipBillType = WolfeinRaceGFIExpandHelpers.GetTypeByName(LogPrefix, ChipBillName);
 
         if (compChipSlotsType != null)
-        {
             chipSlotsGetAllBills = AccessTools.DeclaredMethod(
                 compChipSlotsType,
                 GetAllBillsMethodName,
                 Type.EmptyTypes
             );
-        }
 
         if (compLoadOutSlotsType != null)
-        {
             loadOutSlotsGetAllBills = AccessTools.DeclaredMethod(
                 compLoadOutSlotsType,
                 GetAllBillsMethodName,
                 Type.EmptyTypes
             );
-        }
 
         RegisterChip();
 

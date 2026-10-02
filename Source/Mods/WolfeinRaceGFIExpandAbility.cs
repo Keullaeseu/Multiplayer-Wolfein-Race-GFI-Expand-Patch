@@ -10,7 +10,7 @@ public static class WolfeinRaceGFIExpandAbility
     {
         Log.Message($"{LogPrefix} Initializing...");
 
-        WolfeinRaceGFIExpandAbilityJetJumpPatch.Patch();
+        WolfeinRaceGFIExpandAbilityJetJump.Patch();
         // FullSalvo (Verb_CastAbility_FullSalvoBurst + BezierProjectile):
         // target-cell calculation itself is deterministic, but BezierProjectile
         // lazily rolls Verse.Rand offsets from DrawAt (render, unsynced).

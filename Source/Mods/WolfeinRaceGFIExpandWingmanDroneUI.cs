@@ -9,7 +9,7 @@ using Verse;
 
 namespace MultiplayerWolfeinRaceGFIExpandPatch.Source.Mods;
 
-public class WolfeinRaceGFIExpandWingmanDroneUIPatch
+public class WolfeinRaceGFIExpandWingmanDroneUI
 {
     private const string LogPrefix = "[Multiplayer Wolfein Race GFI Expand Wingman Drone Patch]";
 
@@ -49,7 +49,7 @@ public class WolfeinRaceGFIExpandWingmanDroneUIPatch
         }
 
         MpCompat.harmony.Patch(showWorkModeMenu,
-            new HarmonyMethod(typeof(WolfeinRaceGFIExpandWingmanDroneUIPatch), nameof(ShowWorkModeMenuPrefix)));
+            new HarmonyMethod(typeof(WolfeinRaceGFIExpandWingmanDroneUI), nameof(ShowWorkModeMenuPrefix)));
 
         Log.Message($"{LogPrefix} Initialized.");
     }
@@ -58,7 +58,7 @@ public class WolfeinRaceGFIExpandWingmanDroneUIPatch
 
     public static void RegisterSyncMethods()
     {
-        MP.RegisterSyncMethod(typeof(WolfeinRaceGFIExpandWingmanDroneUIPatch), nameof(SetWorkMode));
+        MP.RegisterSyncMethod(typeof(WolfeinRaceGFIExpandWingmanDroneUI), nameof(SetWorkMode));
     }
 
     #endregion

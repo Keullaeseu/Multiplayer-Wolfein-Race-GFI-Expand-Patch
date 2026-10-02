@@ -1,9 +1,16 @@
 ﻿using Multiplayer.API;
-using Multiplayer.Compat;
 using Verse;
 
 namespace MultiplayerWolfeinRaceGFIExpandPatch.Source.Mods;
 
+/// <summary>
+///     Player-facing shield actions (JL_WolfeinExpand.CompWolfeinShield):
+///     ToggleShield and RechargeShieldWithEnergy are named methods called
+///     from the shield hit-points gizmo, so syncing them directly covers the
+///     gizmo. The mod IL additionally shows two capturing void lambdas
+///     directly on the comp inside CompGetGizmosExtra (the DEV gizmo
+///     actions); those are synced debug-only, same as before.
+/// </summary>
 public static class WolfeinRaceGFIExpandEnergyShield
 {
     private const string LogPrefix = "[Multiplayer Wolfein Race GFI Expand Energy Shield Patch]";
@@ -14,25 +21,25 @@ public static class WolfeinRaceGFIExpandEnergyShield
     {
         Log.Message($"{LogPrefix} Initializing...");
 
-        var shieldType = WolfeinRaceGfiExpandHelpers.GetTypeByName(LogPrefix, WolfeinShieldName);
+        var shieldType = WolfeinRaceGFIExpandHelpers.GetTypeByName(LogPrefix, WolfeinShieldName);
         if (shieldType == null)
         {
             Log.Error($"{LogPrefix} Could not find {WolfeinShieldName}.");
             return;
         }
 
-        // DEV gizmos inside CompGetGizmosExtra (debug-only actions).
-        // Best effort: ordinals may shift with mod updates; failures are logged
-        // by MpCompat and do not break the essential Toggle/Recharge sync below.
-        try
+        var synced = 0;
+        foreach (var match in WolfeinRaceGFIExpandLambdaSync.FindParentLambdas(shieldType, "CompGetGizmosExtra",
+                     typeof(void)))
         {
-            MpCompat.RegisterLambdaMethod(WolfeinShieldName, "CompGetGizmosExtra", 1, 2)
-                .SetDebugOnly();
+            MP.RegisterSyncMethod(match).SetDebugOnly();
+            synced++;
         }
-        catch (Exception exception)
-        {
-            Log.Warning($"{LogPrefix} Could not register dev gizmo lambdas: {exception.Message}");
-        }
+
+        if (synced != 2)
+            Log.Warning($"{LogPrefix} Expected 2 debug actions, synced {synced}.");
+        else
+            Log.Message($"{LogPrefix} Synced {WolfeinShieldName}.CompGetGizmosExtra() debug actions.");
 
         RegisterSyncMethods(shieldType);
 

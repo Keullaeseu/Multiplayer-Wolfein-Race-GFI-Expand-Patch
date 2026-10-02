@@ -52,7 +52,7 @@ public static class WolfeinRaceGFIExpandHairStyle
 
     private static void PatchHairSelector()
     {
-        var dialogType = WolfeinRaceGfiExpandHelpers.GetTypeByName(LogPrefix, HairStyleSelectorName);
+        var dialogType = WolfeinRaceGFIExpandHelpers.GetTypeByName(LogPrefix, HairStyleSelectorName);
         if (dialogType == null)
             return;
 
@@ -78,7 +78,7 @@ public static class WolfeinRaceGFIExpandHairStyle
         if (savedZoomLevelField == null || setZoomLevelMethod == null)
             return;
 
-        var dialogType = WolfeinRaceGfiExpandHelpers.GetTypeByName(LogPrefix, WolfeinUiDialogName);
+        var dialogType = WolfeinRaceGFIExpandHelpers.GetTypeByName(LogPrefix, WolfeinUiDialogName);
         if (dialogType == null)
             return;
 

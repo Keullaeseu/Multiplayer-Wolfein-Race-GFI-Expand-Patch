@@ -1,16 +1,17 @@
 using HarmonyLib;
-using Multiplayer.Compat;
 using Verse;
 
 namespace MultiplayerWolfeinRaceGFIExpandPatch.Source.Mods;
 
 /// <summary>
-///     Turret gizmos (Command_TurretControl):
-///     - toggleAction flips fireAtWill + clears forcedTarget
-///     - onTargetSelected sets forcedTarget/currentTarget
-///     Both are lambdas inside HediffComp_TurretGun.CompGetGizmos.
-///     Derived types (TurretGun2/3/4) inherit this method without overriding it,
-///     so registering the base covers all of them.
+///     Turret gizmos (Command_TurretControl on
+///     JL_WolfeinExpand.HediffComp_TurretGun).
+///     The mod IL shows both actions as instance methods directly on the
+///     comp: b__45_0 flips fireAtWill + clears forcedTarget, b__45_1 takes
+///     the forced LocalTargetInfo. Syncing by signature (same pattern as
+///     WolfeinRepairUnit in the base Wolfein patch project) instead of
+///     ordinals. Derived types (TurretGun2/3/4) inherit CompGetGizmos
+///     without overriding it, so the base covers all of them.
 /// </summary>
 public static class WolfeinRaceGFIExpandTurret
 {
@@ -29,10 +30,17 @@ public static class WolfeinRaceGFIExpandTurret
             return;
         }
 
-        // Ordinals 0,1 = toggleAction + onTargetSelected in CompGetGizmos.
-        MpCompat.RegisterLambdaMethod(baseTurretType, "CompGetGizmos", 0, 1);
-        Log.Message($"{LogPrefix} Registered {BaseTurretTypeName}.CompGetGizmos lambdas 0,1.");
+        var synced = WolfeinRaceGFIExpandLambdaSync.SyncParentLambdas(baseTurretType, "CompGetGizmos", typeof(void));
+        synced += WolfeinRaceGFIExpandLambdaSync.SyncParentLambdas(baseTurretType, "CompGetGizmos", typeof(void),
+            typeof(LocalTargetInfo));
 
-        Log.Message($"{LogPrefix} Initialized.");
+        if (synced != 2)
+        {
+            Log.Warning(
+                $"{LogPrefix} Expected 2 turret actions, synced {synced}.");
+            return;
+        }
+
+        Log.Message($"{LogPrefix} Patched {BaseTurretTypeName}.CompGetGizmos().");
     }
 }
