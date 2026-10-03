@@ -6,20 +6,26 @@ using Verse;
 namespace MultiplayerWolfeinRaceGFIExpandPatch.Source.Mods;
 
 /// <summary>
-///     MVCF compatibility for verbs GFI builds outside VerbTracker.InitVerb.
-///     CompWeaponFireModeSwitch.SwitchFireMode constructs a fresh secondary
-///     verb and swaps it straight into the tracker list (verified in IL), so
-///     MVCF never assigns it a ManagedVerb. On the next load MVCF
-///     VerbManager.AddVerb then logs "[MVCF] Attempted to get ManagedVerb ..."
-///     and throws NullReferenceException, aborting PostLoadInit for the whole
-///     mech ("Could not do PostLoadInit on Wolfein_Mechanoid..."). Trigger
-///     needs a fire-mode-switched gun (e.g. the auto-equipped sniper cannon)
-///     equipped at save time plus MVCF active, which is why it only happens
-///     sometimes; MP join-point reloads just make loads more frequent.
-///     The postfix initializes the new primary verb through MVCF itself, and
-///     the AddVerb guard keeps any other uninitialized verb from ever
-///     crashing a load again. Everything is def/comp/instance based, so all
-///     clients reach the same decision. No-op without MVCF.
+///     Verb-lifetime repairs for CompWeaponFireModeSwitch.SwitchFireMode,
+///     which builds a fresh secondary verb and swaps it straight into the
+///     tracker list (verified in IL).
+///     Caster: vanilla never scribes Verb.caster; Pawn_EquipmentTracker.
+///     ExposeData repairs it (verb.caster = pawn) on PostLoadInit. GFI copies
+///     PrimaryVerb.caster at switch time instead, which is still null when
+///     the switch is re-applied during load before that repair runs. A null
+///     caster crashes the next gizmo draw inside
+///     VerbTracker.CreateVerbTargetCommand (verb.caster.Faction). The postfix
+///     mirrors the vanilla repair, so the swapped-in verb is always
+///     gizmo-safe. This crash is not MP-specific; MP only replays the click
+///     everywhere.
+///     MVCF: the same hand-built verb never receives a ManagedVerb, so on the
+///     next load VerbManager.AddVerb logs "[MVCF] Attempted to get
+///     ManagedVerb ..." and throws, aborting PostLoadInit for the whole mech
+///     ("Could not do PostLoadInit on Wolfein_Mechanoid..."). The postfix
+///     initializes the new primary verb through MVCF itself, and the AddVerb
+///     guard keeps any other uninitialized verb from ever crashing a load
+///     again. Everything is def/comp/instance based, so all clients reach the
+///     same decision. MVCF parts are no-ops without MVCF.
 /// </summary>
 public static class WolfeinRaceGFIExpandManagedVerbs
 {
@@ -40,18 +46,29 @@ public static class WolfeinRaceGFIExpandManagedVerbs
     {
         Log.Message($"{LogPrefix} Initializing...");
 
-        if (!CacheMembers())
+        PatchSwitchFireMode();
+        PatchAddVerbGuard();
+
+        Log.Message($"{LogPrefix} Initialized.");
+    }
+
+    // Always applied: needs only the GFI type.
+    private static void PatchSwitchFireMode()
+    {
+        var fireModeSwitchType = AccessTools.TypeByName(FireModeSwitchTypeName);
+
+        if (fireModeSwitchType == null)
         {
-            Log.Message($"{LogPrefix} MVCF not present or members missing, skipping.");
+            Log.Warning($"{LogPrefix} Could not find {FireModeSwitchTypeName}.");
             return;
         }
 
         var switchFireMode = AccessTools.Method(
-                                 AccessTools.TypeByName(FireModeSwitchTypeName),
+                                 fireModeSwitchType,
                                  "SwitchFireMode",
                                  new[] { typeof(bool) })
                              ?? AccessTools.Method(
-                                 AccessTools.TypeByName(FireModeSwitchTypeName),
+                                 fireModeSwitchType,
                                  "SwitchFireMode");
 
         if (switchFireMode == null)
@@ -66,6 +83,16 @@ public static class WolfeinRaceGFIExpandManagedVerbs
                 typeof(WolfeinRaceGFIExpandManagedVerbs),
                 nameof(SwitchFireModePostfix)));
         Log.Message($"{LogPrefix} Patched {FireModeSwitchTypeName}.SwitchFireMode().");
+    }
+
+    // MVCF-gated: silently disabled when MVCF or its members are absent.
+    private static void PatchAddVerbGuard()
+    {
+        if (!CacheMembers())
+        {
+            Log.Message($"{LogPrefix} MVCF not present, MVCF guards disabled.");
+            return;
+        }
 
         var addVerb = AccessTools.Method(
             AccessTools.TypeByName(VerbManagerTypeName),
@@ -84,8 +111,6 @@ public static class WolfeinRaceGFIExpandManagedVerbs
                 typeof(WolfeinRaceGFIExpandManagedVerbs),
                 nameof(AddVerbPrefix)));
         Log.Message($"{LogPrefix} Patched MVCF.VerbManager.AddVerb().");
-
-        Log.Message($"{LogPrefix} Initialized.");
     }
 
     private static bool CacheMembers()
@@ -110,16 +135,18 @@ public static class WolfeinRaceGFIExpandManagedVerbs
     }
 
     // Runs inside the already-synced SwitchFireMode replay on every client,
-    // so each client initializes its own local verb instance identically.
+    // so each client repairs its own local verb instance identically.
     private static void SwitchFireModePostfix(ThingComp __instance)
     {
-        if (!active)
-            return;
-
         var equippable = __instance?.parent?.TryGetComp<CompEquippable>();
         var verb = equippable?.PrimaryVerb;
 
         if (verb == null)
+            return;
+
+        EnsureCaster(verb, equippable);
+
+        if (!active)
             return;
 
         try
@@ -137,6 +164,31 @@ public static class WolfeinRaceGFIExpandManagedVerbs
         catch (Exception exception)
         {
             Log.Warning($"{LogPrefix} ManagedVerb init failed, continuing: {exception.Message}");
+        }
+    }
+
+    // Mirrors the vanilla Pawn_EquipmentTracker.ExposeData repair
+    // (verb.caster = pawn on PostLoadInit): GFI copies PrimaryVerb.caster at
+    // switch time, which is still null when the switch is re-applied during
+    // load before that repair runs. Only fills from the actual equipment
+    // holder, never invents state.
+    private static void EnsureCaster(Verb verb, CompEquippable equippable)
+    {
+        if (verb == null || verb.caster != null || equippable?.parent == null)
+            return;
+
+        try
+        {
+            if (equippable.parent.ParentHolder is Pawn_EquipmentTracker equipmentTracker
+                && equipmentTracker.pawn != null)
+            {
+                verb.caster = equipmentTracker.pawn;
+                Log.Message($"{LogPrefix} Repaired null caster on {verb.verbProps?.label ?? verb.GetType().Name}.");
+            }
+        }
+        catch (Exception exception)
+        {
+            Log.Warning($"{LogPrefix} Caster repair failed, continuing: {exception.Message}");
         }
     }
 
